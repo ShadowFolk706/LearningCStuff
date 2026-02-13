@@ -35,14 +35,30 @@ const char* get_filename(const char* filepath)
     return filename + 1;
 }
 
-const char* remove_extention(const char* filepath)
+const char* remove_extension(const char* filename)
 {
-    const char* noExt = strrchr(filepath, '.');
-    if (noExt == NULL)
+    if (strcmp(filename, ".") == 0)
     {
-        return filepath;
+        return ".";
     }
-    return noExt + 1;
+    static char buffer[256];
+    const char* dot = strrchr(filename, '.');
+    
+    if (dot == NULL)
+    {
+        strncpy(buffer, filename, sizeof(buffer) - 4);
+        buffer[sizeof(buffer) - 1] = '\0';
+        return buffer + 3;
+    }
+    
+    size_t len = dot - filename;
+    if (len >= sizeof(buffer))
+        len = sizeof(buffer) - 4;
+    
+    strncpy(buffer, filename, len);
+    buffer[len] = '\0';
+    
+    return buffer + 3;
 }
 
 void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
@@ -459,6 +475,7 @@ int main()
     char **files = NULL;
     char **filesToBePlayed = NULL;
     char *cfile = NULL;
+    char *songName = NULL;
     char cfileFilePath[512];
     int file_count = 0;
     int key, y, startY, startX, width, height, endX, endY, i;
@@ -544,20 +561,32 @@ int main()
         wbkgd(win, COLOR_PAIR(0));
         for (i = 0; i < file_count; i++)
         {
-            if (i == (y - 1))
+            if (i == (y - startY))
             {
-                mvwchgat(win, y + 1, 1, width, A_NORMAL, 4, NULL);
+                wattron(win, COLOR_PAIR(4));
+                mvwprintw(win, i + 2, 2, "%s", files[i]);
+                mvwhline(win, i + 2, 2 + strlen(files[i]), ' ', width - 2 - strlen(files[i]));
+                wattroff(win, COLOR_PAIR(4));
             }
             if (i != (y - 1))
             {
                 wbkgd(win, COLOR_PAIR(2));
+                mvwprintw(win, i + 2, 2, "%s", files[i]);
+                wbkgd(win, COLOR_PAIR(0));
             }
-            mvwprintw(win, i + 2, 2, "%s", files[i]);
         }
 
         wbkgd(win, COLOR_PAIR(3));
-        mvwprintw(stdscr, LINES / 2 - 2, COLS / 2 + 3, "File: %s", cfile);
-        mvwprintw(stdscr, LINES / 2 - 1, COLS / 2 + 3, "Status: %s", player.is_paused ? "||" : "|>");
+        if (cfile != NULL)
+        {
+            mvwprintw(stdscr, LINES / 2 - 2, COLS / 2 + 3, "File: %s", remove_extension(cfile));
+            mvwprintw(stdscr, LINES / 2 - 1, COLS / 2 + 3, "Status: %s", player.is_paused ? "||" : "|>");
+        }
+        else
+        {
+            mvwprintw(stdscr, LINES / 2 - 2, COLS / 2 + 3, "File: None");
+            mvwprintw(stdscr, LINES / 2 - 1, COLS / 2 + 3, "Status: %s", player.is_paused ? "||" : "|>");
+        }
         wbkgd(win, COLOR_PAIR(0));
 
         refresh();
@@ -633,7 +662,6 @@ int main()
             {
                 player_play_file(&player, cfileFilePath);
             }
-            fclose(log);
         }
         fclose(log);
     }
